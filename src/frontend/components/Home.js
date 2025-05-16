@@ -72,25 +72,37 @@ const Home = ({ marketplace, nft }) => {
     setCart(cart.filter(item => item.itemId !== itemId))
   }
 
-  const buyCartItems = async () => {
-    if (cart.length === 0) return
+const buyCartItems = async () => {
+  if (cart.length === 0) return;
 
+  const successfulPurchases = []
+
+  for (const item of cart) {
     try {
-      for (const item of cart) {
-        const tx = await marketplace.purchaseItem(item.itemId, {
-          value: item.totalPrice
-        })
-        await tx.wait()
-        console.log(`Purchased item with ID: ${item.itemId}`) // Optional: Log successful purchase
-      }
-      setCart([])
-      loadMarketplaceItems() // Reload items to reflect purchases
-      alert("Thank you for your purchase!") // Optional: Alert user of successful checkout
+      const tx = await marketplace.purchaseItem(item.itemId, {
+        value: item.totalPrice
+      });
+      await tx.wait();
+      console.log(`Purchased item with ID: ${item.itemId}`);
+      successfulPurchases.push(item.itemId);
     } catch (err) {
-      console.error("Failed to purchase cart items:", err)
-      alert("An error occurred during checkout.") // Optional: Alert user of failure
+      console.error(`Failed to purchase item ID ${item.itemId}:`, err);
+      alert(`Purchase failed for item: ${item.name}`);
     }
   }
+
+  // Only remove successfully purchased items from the cart
+  setCart(cart.filter(item => !successfulPurchases.includes(item.itemId)));
+
+  // Reload the marketplace to update the status of items
+  if (successfulPurchases.length > 0) {
+    loadMarketplaceItems();
+    alert("Checkout completed for some items.");
+  } else {
+    alert("No items were purchased.");
+  }
+};
+
 
   useEffect(() => {
     if (marketplace && nft) loadMarketplaceItems()

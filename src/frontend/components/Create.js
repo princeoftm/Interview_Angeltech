@@ -60,27 +60,44 @@ const uploadToPinata = async (file) => {
     setPreview(URL.createObjectURL(file));
   };
 
-  const createNFT = async () => {
-    if (!image || !price || !name || !description) {
-      console.error("Missing required fields.");
-      return;
-    }
+const createNFT = async () => {
+  if (!image || !price || !name || !description) {
+    alert("Please fill in all fields before creating the NFT.");
+    return;
+  }
 
-    if (!nft || !marketplace) {
-      console.error("Contract not loaded.");
-      return;
-    }
+  if (!nft || !marketplace) {
+    alert("Smart contracts not connected.");
+    return;
+  }
 
-    try {
-      const imageUrl = await uploadToPinata(image);
-      const metadata = { name, description, image: imageUrl };
-      const metadataUrl = await uploadJSONToPinata(metadata);
+  try {
+    const imageUrl = await uploadToPinata(image);
+    const metadata = { name, description, image: imageUrl };
+    const metadataUrl = await uploadJSONToPinata(metadata);
 
-      await mintThenList(metadataUrl);
-    } catch (error) {
-      console.error("Error creating NFT:", error);
-    }
-  };
+    await mintThenList(metadataUrl);
+
+    // ✅ Alert and reset form after successful mint & list
+    alert("🎉 Your NFT has been successfully created and listed!");
+
+    // Reset form fields
+    setImage(null);
+    setPreview(null);
+    setPrice(null);
+    setName("");
+    setDescription("");
+
+    // Also reset the file input (optional)
+    const fileInput = document.getElementById("formFile");
+    if (fileInput) fileInput.value = "";
+
+  } catch (error) {
+    console.error("Error creating NFT:", error);
+    alert("❌ Failed to create NFT. Check console for details.");
+  }
+};
+
 
   const mintThenList = async (tokenURI) => {
   try {

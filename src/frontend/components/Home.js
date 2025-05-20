@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Row, Col, Card, Button, Badge, Container } from 'react-bootstrap' // Added Container
+import { Row, Col, Card, Button, Badge, Container } from 'react-bootstrap'
 import axios from 'axios'
 const { ethers } = require('ethers')
 
@@ -7,6 +7,7 @@ const Home = ({ marketplace, nft }) => {
   const [loading, setLoading] = useState(true)
   const [items, setItems] = useState([])
   const [cart, setCart] = useState([])
+  const [processingCheckout, setProcessingCheckout] = useState(false)
 
   const fetchPinataMetadata = async (cid) => {
     try {
@@ -28,14 +29,12 @@ const Home = ({ marketplace, nft }) => {
         const item = await marketplace.listings(i)
         if (!item.sold) {
           const tokenURI = await nft.tokenURI(item.tokenId)
-
           const cid = tokenURI.split("/").pop()
           const metadata = await fetchPinataMetadata(cid)
           if (!metadata) continue
 
           const imageCID = metadata.image.split("/").pop()
           const imageURL = `https://gateway.pinata.cloud/ipfs/${imageCID}`
-
           const totalPrice = await marketplace.getTotalPrice(item.id)
 
           loadedItems.push({
@@ -72,7 +71,8 @@ const Home = ({ marketplace, nft }) => {
   }
 
   const buyCartItems = async () => {
-    if (cart.length === 0) return;
+    if (processingCheckout || cart.length === 0) return
+    setProcessingCheckout(true)
 
     const successfulPurchases = []
 
@@ -80,13 +80,12 @@ const Home = ({ marketplace, nft }) => {
       try {
         const tx = await marketplace.buyItem(item.itemId, {
           value: item.totalPrice
-        });
-        await tx.wait();
-        console.log(`Purchased item with ID: ${item.itemId}`);
-        successfulPurchases.push(item.itemId);
+        })
+        await tx.wait()
+        successfulPurchases.push(item.itemId)
       } catch (err) {
-        console.error(`Failed to purchase item ID ${item.itemId}:`, err);
-        alert(`Purchase failed for item: ${item.name}`);
+        console.error(`Failed to purchase item ID ${item.itemId}:`, err)
+        alert(`Purchase failed for item: ${item.name}`)
       }
     }
 
@@ -98,6 +97,8 @@ const Home = ({ marketplace, nft }) => {
     } else {
       alert("No items were purchased.")
     }
+
+    setProcessingCheckout(false)
   }
 
   useEffect(() => {
@@ -120,8 +121,16 @@ const Home = ({ marketplace, nft }) => {
       {/* Floating Cart Button */}
       <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 1000 }}>
         {cart.length > 0 && (
-          <Button variant="info" className="shadow-lg" onClick={buyCartItems}>
-            <i className="bi bi-cart-fill me-2"></i> Cart <Badge bg="light" text="dark" className="ms-1">{cart.length}</Badge>
+          <Button
+            variant="info"
+            className="shadow-lg"
+            onClick={buyCartItems}
+            disabled={processingCheckout}
+          >
+            <i className="bi bi-cart-fill me-2"></i> Cart{' '}
+            <Badge bg="light" text="dark" className="ms-1">
+              {cart.length}
+            </Badge>
           </Button>
         )}
       </div>
@@ -132,11 +141,11 @@ const Home = ({ marketplace, nft }) => {
           <Row xs={1} md={2} lg={3} xl={4} className="g-4 justify-content-center">
             {items.map((item, idx) => (
               <Col key={idx}>
-                <Card className="h-100 shadow-sm border-0 transform-on-hover"> {/* Added classes for subtle hover effect */}
-                  <Card.Img variant="top" src={item.image} style={{ height: '150px', objectFit: 'cover',margin: 50 }} />
+                <Card className="h-100 shadow-sm border-0 transform-on-hover">
+                  <Card.Img variant="top" src={item.image} style={{ height: '150px', objectFit: 'cover', margin: 50 }} />
                   <Card.Body className="d-flex flex-column">
                     <Card.Title className="text-truncate mb-1">{item.name}</Card.Title>
-                    <Card.Text className="text-muted flex-grow-1" style={{ margin: 50,fontSize: '0.9rem' }}>
+                    <Card.Text className="text-muted flex-grow-1" style={{ margin: 50, fontSize: '0.9rem' }}>
                       {item.description.length > 70 ? item.description.substring(0, 67) + '...' : item.description}
                     </Card.Text>
                     <div className="mt-auto pt-2 border-top">
@@ -181,7 +190,9 @@ const Home = ({ marketplace, nft }) => {
           style={{ zIndex: 999, borderTopLeftRadius: '15px', borderTopRightRadius: '15px' }}
         >
           <Card.Body>
-            <h4 className="mb-3 text-secondary">Your Shopping Cart <Badge bg="primary">{cart.length}</Badge></h4>
+            <h4 className="mb-3 text-secondary">
+              Your Shopping Cart <Badge bg="primary">{cart.length}</Badge>
+            </h4>
             <ul className="list-group list-group-flush mb-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
               {cart.map((item) => (
                 <li key={item.itemId} className="list-group-item d-flex justify-content-between align-items-center">
@@ -195,8 +206,30 @@ const Home = ({ marketplace, nft }) => {
               ))}
             </ul>
             <div className="d-grid">
-              <Button variant="success" size="lg" onClick={buyCartItems}>
-                <i className="bi bi-wallet-fill me-2"></i> Checkout Total: {ethers.formatEther(cart.reduce((total, item) => total + item.totalPrice, ethers.parseEther("0")))} ETH
+              <Button
+                variant="success"
+                size="lg"
+                onClick={buyCartItems}
+                disabled={processingCheckout}
+              >
+                {processingCheckout ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-wallet-fill me-2"></i>
+                    Checkout Total:{' '}
+                    {ethers.formatEther(
+                      cart.reduce(
+                        (total, item) => total + item.totalPrice,
+                        ethers.parseEther("0")
+                      )
+                    )}{' '}
+                    ETH
+                  </>
+                )}
               </Button>
             </div>
           </Card.Body>

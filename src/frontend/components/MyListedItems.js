@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Row, Col, Card } from 'react-bootstrap'
-const { ethers }= require('ethers')
+const { ethers } = require('ethers')
 
 // Converts IPFS or HTTP(S) to Pinata gateway URL
 function ipfsToPinataGateway(uri) {
@@ -37,12 +37,12 @@ export default function MyListedItems({ marketplace, nft, account }) {
 
   const loadListedItems = async () => {
     try {
-      const itemCount = await marketplace.itemCount()
+      const itemCount = await marketplace.itemCounter() // updated method name
       const listed = []
       const sold = []
 
       for (let i = 1; i <= itemCount; i++) {
-        const item = await marketplace.items(i)
+        const item = await marketplace.listings(i) // updated mapping name
 
         if (item.seller.toLowerCase() === account.toLowerCase()) {
           const tokenURI = await nft.tokenURI(item.tokenId)
@@ -52,12 +52,12 @@ export default function MyListedItems({ marketplace, nft, account }) {
           const metadata = await response.json()
 
           const imageUrl = ipfsToPinataGateway(metadata.image)
-          const totalPrice = await marketplace.getTotalPrice(item.itemId)
+          const totalPrice = await marketplace.getTotalPrice(item.id) // use item.id
 
           const structuredItem = {
             totalPrice,
             price: item.price,
-            itemId: item.itemId,
+            itemId: item.id,  // updated field
             name: metadata.name,
             description: metadata.description,
             image: imageUrl,

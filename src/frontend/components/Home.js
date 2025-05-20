@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Row, Col, Card, Button, Badge } from 'react-bootstrap'
+import { Row, Col, Card, Button, Badge, Container } from 'react-bootstrap' // Added Container
 import axios from 'axios'
 const { ethers } = require('ethers')
-
-const pinataJWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiIyMDAyZTUxYS0yMjdmLTRlOTctOTcxZC0xODg1ODc4MDM4NWYiLCJlbWFpbCI6InJhb2FuaXJ1ZGRoOTJAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBpbl9wb2xpY3kiOnsicmVnaW9ucyI6W3siZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiRlJBMSJ9LHsiZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiTllDMSJ9XSwidmVyc2lvbjoxfSwibWZhX2VuYWJsZWQiOmZhbHNlLCJzdGF0dXMiOiJBQ1RJVkUifSwiYXV0aGVudGljYXRpb25UeXBlIjoic2NvcGVkS2V5Iiwic2NvcGVkS2V5S2V5IjoiNmUyMThjYjQxYWNhMjlmMDFlNjUiLCJzY29wZWRLZXlTZWNyZXQiOiJmNmYzYzNjNmFmMDVmZmNkMzQxODIwZjIyYzg0ZDk5NDg1YzhkYTMxNzQwOTI5NmI2ZjM1YzQzN2QwMjMzOTdjIiwiZXhwIjoxNzc4ODI4OTIzfQ.7jCwk1g0wE1NbW27YPRDAenQqBlIEUvwPoz-RoExAiQ";
 
 const Home = ({ marketplace, nft }) => {
   const [loading, setLoading] = useState(true)
@@ -23,15 +21,14 @@ const Home = ({ marketplace, nft }) => {
 
   const loadMarketplaceItems = async () => {
     try {
-      const itemCount = await marketplace.itemCount()
+      const itemCount = await marketplace.itemCounter()
       const loadedItems = []
 
       for (let i = 1; i <= itemCount; i++) {
-        const item = await marketplace.items(i)
+        const item = await marketplace.listings(i)
         if (!item.sold) {
           const tokenURI = await nft.tokenURI(item.tokenId)
 
-          // Extract CID from tokenURI
           const cid = tokenURI.split("/").pop()
           const metadata = await fetchPinataMetadata(cid)
           if (!metadata) continue
@@ -39,12 +36,14 @@ const Home = ({ marketplace, nft }) => {
           const imageCID = metadata.image.split("/").pop()
           const imageURL = `https://gateway.pinata.cloud/ipfs/${imageCID}`
 
-          const totalPrice = await marketplace.getTotalPrice(item.itemId)
+          const totalPrice = await marketplace.getTotalPrice(item.id)
 
           loadedItems.push({
             totalPrice,
-            itemId: item.itemId,
+            itemId: item.id,
             seller: item.seller,
+            tokenId: item.tokenId,
+            nftAddress: item.nft,
             name: metadata.name,
             description: metadata.description,
             image: imageURL,
@@ -61,9 +60,9 @@ const Home = ({ marketplace, nft }) => {
   }
 
   const addToCart = (item) => {
-        if (cart.some(cartItem => cartItem.itemId === item.itemId)) {
+    if (cart.some(cartItem => cartItem.itemId === item.itemId)) {
       alert("This item is already in your cart!");
-      return; // Don't add the item again
+      return;
     }
     setCart([...cart, item])
   }
@@ -72,37 +71,34 @@ const Home = ({ marketplace, nft }) => {
     setCart(cart.filter(item => item.itemId !== itemId))
   }
 
-const buyCartItems = async () => {
-  if (cart.length === 0) return;
+  const buyCartItems = async () => {
+    if (cart.length === 0) return;
 
-  const successfulPurchases = []
+    const successfulPurchases = []
 
-  for (const item of cart) {
-    try {
-      const tx = await marketplace.purchaseItem(item.itemId, {
-        value: item.totalPrice
-      });
-      await tx.wait();
-      console.log(`Purchased item with ID: ${item.itemId}`);
-      successfulPurchases.push(item.itemId);
-    } catch (err) {
-      console.error(`Failed to purchase item ID ${item.itemId}:`, err);
-      alert(`Purchase failed for item: ${item.name}`);
+    for (const item of cart) {
+      try {
+        const tx = await marketplace.buyItem(item.itemId, {
+          value: item.totalPrice
+        });
+        await tx.wait();
+        console.log(`Purchased item with ID: ${item.itemId}`);
+        successfulPurchases.push(item.itemId);
+      } catch (err) {
+        console.error(`Failed to purchase item ID ${item.itemId}:`, err);
+        alert(`Purchase failed for item: ${item.name}`);
+      }
+    }
+
+    setCart(cart.filter(item => !successfulPurchases.includes(item.itemId)))
+
+    if (successfulPurchases.length > 0) {
+      loadMarketplaceItems()
+      alert("Checkout completed for some items.")
+    } else {
+      alert("No items were purchased.")
     }
   }
-
-  // Only remove successfully purchased items from the cart
-  setCart(cart.filter(item => !successfulPurchases.includes(item.itemId)));
-
-  // Reload the marketplace to update the status of items
-  if (successfulPurchases.length > 0) {
-    loadMarketplaceItems();
-    alert("Checkout completed for some items.");
-  } else {
-    alert("No items were purchased.");
-  }
-};
-
 
   useEffect(() => {
     if (marketplace && nft) loadMarketplaceItems()
@@ -110,82 +106,103 @@ const buyCartItems = async () => {
 
   if (loading) {
     return (
-      <main style={{ padding: "1rem 0" }}>
-        <h2>Loading...</h2>
+      <main className="text-center py-5">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+        <h2 className="mt-3 text-primary">Loading Marketplace Items...</h2>
       </main>
     )
   }
 
   return (
-    <div className="flex justify-center">
+    <Container className="my-5">
+      {/* Floating Cart Button */}
       <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 1000 }}>
         {cart.length > 0 && (
-          <Button variant="outline-primary" onClick={buyCartItems}>
-            Cart <Badge bg="secondary">{cart.length}</Badge>
+          <Button variant="info" className="shadow-lg" onClick={buyCartItems}>
+            <i className="bi bi-cart-fill me-2"></i> Cart <Badge bg="light" text="dark" className="ms-1">{cart.length}</Badge>
           </Button>
         )}
       </div>
 
       {items.length > 0 ? (
-        <div className="px-5 container">
-          <Row xs={1} md={2} lg={4} className="g-4 py-5">
+        <>
+          <h2 className="text-center mb-5 text-primary">Explore Our Digital Collection</h2>
+          <Row xs={1} md={2} lg={3} xl={4} className="g-4 justify-content-center">
             {items.map((item, idx) => (
-              <Col key={idx} className="overflow-hidden">
-                <Card>
-                  <Card.Img variant="top" src={item.image} />
-                  <Card.Body>
-                    <Card.Title>{item.name}</Card.Title>
-                    <Card.Text>{item.description}</Card.Text>
-                  </Card.Body>
-                  <Card.Footer>
-                    <div className="d-grid gap-2">
-                      <Button onClick={() => addToCart(item)} variant="outline-success" size="lg">
-                        Add to Cart for {ethers.formatEther(item.totalPrice)} ETH
-                      </Button>
-                      {cart.some(cartItem => cartItem.itemId === item.itemId) && (
-                        <Button onClick={() => removeFromCart(item.itemId)} variant="outline-danger" size="sm">
-                          Remove from Cart
+              <Col key={idx}>
+                <Card className="h-100 shadow-sm border-0 transform-on-hover"> {/* Added classes for subtle hover effect */}
+                  <Card.Img variant="top" src={item.image} style={{ height: '150px', objectFit: 'cover',margin: 50 }} />
+                  <Card.Body className="d-flex flex-column">
+                    <Card.Title className="text-truncate mb-1">{item.name}</Card.Title>
+                    <Card.Text className="text-muted flex-grow-1" style={{ margin: 50,fontSize: '0.9rem' }}>
+                      {item.description.length > 70 ? item.description.substring(0, 67) + '...' : item.description}
+                    </Card.Text>
+                    <div className="mt-auto pt-2 border-top">
+                      <p className="fw-bold fs-5 text-success mb-2">
+                        {ethers.formatEther(item.totalPrice)} ETH
+                      </p>
+                      {!cart.some(cartItem => cartItem.itemId === item.itemId) ? (
+                        <Button
+                          onClick={() => addToCart(item)}
+                          variant="primary"
+                          className="w-100 d-flex align-items-center justify-content-center"
+                        >
+                          <i className="bi bi-plus-circle-fill me-2"></i> Add to Cart
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => removeFromCart(item.itemId)}
+                          variant="outline-danger"
+                          className="w-100 d-flex align-items-center justify-content-center"
+                        >
+                          <i className="bi bi-x-circle-fill me-2"></i> Remove from Cart
                         </Button>
                       )}
                     </div>
-                  </Card.Footer>
+                  </Card.Body>
                 </Card>
               </Col>
             ))}
           </Row>
-        </div>
+        </>
       ) : (
-        <main style={{ padding: "1rem 0" }}>
-          <h2>No listed assets</h2>
+        <main className="text-center py-5">
+          <h2 className="text-muted">No NFTs are currently listed for sale. Check back soon!</h2>
+          <p className="mt-3">Consider <a href="/create" className="text-decoration-none">creating your own NFT</a> to list!</p>
         </main>
       )}
 
+      {/* Persistent Shopping Cart */}
       {cart.length > 0 && (
-        <div
-          className="fixed bottom-0 left-0 right-0 bg-light p-4"
-          style={{ borderTop: '1px solid #ccc' }}
+        <Card
+          className="fixed-bottom bg-white shadow-lg p-3 rounded-top"
+          style={{ zIndex: 999, borderTopLeftRadius: '15px', borderTopRightRadius: '15px' }}
         >
-          <h3>Shopping Cart ({cart.length} items)</h3>
-          <ul style={{ listStyleType: 'none', padding: 0 }}>
-            {cart.map((item) => (
-              <li key={item.itemId} className="d-flex justify-content-between align-items-center mb-2">
-                <div>
-                  {item.name} - {ethers.formatEther(item.totalPrice)} ETH
-                </div>
-                <Button onClick={() => removeFromCart(item.itemId)} variant="outline-danger" size="sm">
-                  Remove
-                </Button>
-              </li>
-            ))}
-          </ul>
-          <div className="d-grid">
-            <Button variant="primary" size="lg" onClick={buyCartItems}>
-              Checkout - {ethers.formatEther(cart.reduce((total, item) => total + item.totalPrice, ethers.parseEther("0")))} ETH
-            </Button>
-          </div>
-        </div>
+          <Card.Body>
+            <h4 className="mb-3 text-secondary">Your Shopping Cart <Badge bg="primary">{cart.length}</Badge></h4>
+            <ul className="list-group list-group-flush mb-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+              {cart.map((item) => (
+                <li key={item.itemId} className="list-group-item d-flex justify-content-between align-items-center">
+                  <div>
+                    <span className="fw-bold">{item.name}</span> - {ethers.formatEther(item.totalPrice)} ETH
+                  </div>
+                  <Button onClick={() => removeFromCart(item.itemId)} variant="outline-danger" size="sm">
+                    <i className="bi bi-trash-fill"></i> Remove
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            <div className="d-grid">
+              <Button variant="success" size="lg" onClick={buyCartItems}>
+                <i className="bi bi-wallet-fill me-2"></i> Checkout Total: {ethers.formatEther(cart.reduce((total, item) => total + item.totalPrice, ethers.parseEther("0")))} ETH
+              </Button>
+            </div>
+          </Card.Body>
+        </Card>
       )}
-    </div>
+    </Container>
   )
 }
 

@@ -60,8 +60,8 @@ const Home = ({ marketplace, nft }) => {
 
   const addToCart = (item) => {
     if (cart.some(cartItem => cartItem.itemId === item.itemId)) {
-      alert("This item is already in your cart!");
-      return;
+      alert("This item is already in your cart!")
+      return
     }
     setCart([...cart, item])
   }
@@ -101,6 +101,26 @@ const Home = ({ marketplace, nft }) => {
     setProcessingCheckout(false)
   }
 
+  const buySingleItem = async (item) => {
+    if (processingCheckout) return
+    setProcessingCheckout(true)
+
+    try {
+      const tx = await marketplace.buyItem(item.itemId, {
+        value: item.totalPrice
+      })
+      await tx.wait()
+      alert(`Successfully purchased: ${item.name}`)
+      loadMarketplaceItems()
+      setCart(cart.filter(cartItem => cartItem.itemId !== item.itemId))
+    } catch (err) {
+      console.error(`Failed to purchase item ID ${item.itemId}:`, err)
+      alert(`Purchase failed for item: ${item.name}`)
+    }
+
+    setProcessingCheckout(false)
+  }
+
   useEffect(() => {
     if (marketplace && nft) loadMarketplaceItems()
   }, [marketplace, nft])
@@ -118,7 +138,6 @@ const Home = ({ marketplace, nft }) => {
 
   return (
     <Container className="my-5">
-      {/* Floating Cart Button */}
       <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 1000 }}>
         {cart.length > 0 && (
           <Button
@@ -152,23 +171,33 @@ const Home = ({ marketplace, nft }) => {
                       <p className="fw-bold fs-5 text-success mb-2">
                         {ethers.formatEther(item.totalPrice)} ETH
                       </p>
-                      {!cart.some(cartItem => cartItem.itemId === item.itemId) ? (
+                      <div className="d-flex flex-column gap-2">
+                        {!cart.some(cartItem => cartItem.itemId === item.itemId) ? (
+                          <Button
+                            onClick={() => addToCart(item)}
+                            variant="primary"
+                            className="w-100 d-flex align-items-center justify-content-center"
+                          >
+                            <i className="bi bi-plus-circle-fill me-2"></i> Add to Cart
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={() => removeFromCart(item.itemId)}
+                            variant="outline-danger"
+                            className="w-100 d-flex align-items-center justify-content-center"
+                          >
+                            <i className="bi bi-x-circle-fill me-2"></i> Remove from Cart
+                          </Button>
+                        )}
                         <Button
-                          onClick={() => addToCart(item)}
-                          variant="primary"
+                          onClick={() => buySingleItem(item)}
+                          variant="success"
                           className="w-100 d-flex align-items-center justify-content-center"
+                          disabled={processingCheckout}
                         >
-                          <i className="bi bi-plus-circle-fill me-2"></i> Add to Cart
+                          <i className="bi bi-cash-coin me-2"></i> Buy Now
                         </Button>
-                      ) : (
-                        <Button
-                          onClick={() => removeFromCart(item.itemId)}
-                          variant="outline-danger"
-                          className="w-100 d-flex align-items-center justify-content-center"
-                        >
-                          <i className="bi bi-x-circle-fill me-2"></i> Remove from Cart
-                        </Button>
-                      )}
+                      </div>
                     </div>
                   </Card.Body>
                 </Card>
@@ -183,7 +212,6 @@ const Home = ({ marketplace, nft }) => {
         </main>
       )}
 
-      {/* Persistent Shopping Cart */}
       {cart.length > 0 && (
         <Card
           className="fixed-bottom bg-white shadow-lg p-3 rounded-top"

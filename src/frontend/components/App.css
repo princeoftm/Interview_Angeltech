@@ -334,15 +334,15 @@ a{
 .main {
     padding: 2rem 0;
 }
-.bd-grid{
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    max-width: 120px;
-    margin-left: 2.5rem;
-    margin-right: 2.5rem;
-    align-items: center;
-    gap: 2rem;
+.bd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  max-width: 1200px; /* Set a more reasonable max width */
+  margin: 0 auto;
+  padding: 1rem;
 }
+
 
 /*-- PAGES --*/
 .title-shop{

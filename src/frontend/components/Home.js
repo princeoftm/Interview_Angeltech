@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Row, Col, Card, Button, Badge, Container } from 'react-bootstrap'
-import axios from 'axios'
+import { Card, Button, Badge, Container } from 'react-bootstrap'
 const { ethers } = require('ethers')
 
 const Home = ({ marketplace, nft }) => {
@@ -21,54 +20,52 @@ const Home = ({ marketplace, nft }) => {
   }
 
   const loadMarketplaceItems = async () => {
-  try {
-    const itemCount = Number(await marketplace.itemCounter())
-    const itemsArray = Array.from({ length: itemCount }, (_, i) => i + 1)
+    try {
+      const itemCount = Number(await marketplace.itemCounter())
+      const itemsArray = Array.from({ length: itemCount }, (_, i) => i + 1)
 
-    const listings = await Promise.all(
-      itemsArray.map(i => marketplace.listings(i))
-    )
+      const listings = await Promise.all(
+        itemsArray.map(i => marketplace.listings(i))
+      )
 
-    const unsoldListings = listings.filter(item => !item.sold)
+      const unsoldListings = listings.filter(item => !item.sold)
 
-    const itemsData = await Promise.all(
-      unsoldListings.map(async (item) => {
-        try {
-          const tokenURI = await nft.tokenURI(item.tokenId)
-          const cid = tokenURI.split("/").pop()
-          const metadata = await fetchPinataMetadata(cid)
-          if (!metadata) return null
+      const itemsData = await Promise.all(
+        unsoldListings.map(async (item) => {
+          try {
+            const tokenURI = await nft.tokenURI(item.tokenId)
+            const cid = tokenURI.split("/").pop()
+            const metadata = await fetchPinataMetadata(cid)
+            if (!metadata) return null
 
-          const imageCID = metadata.image.split("/").pop()
-          const imageURL = `https://gateway.pinata.cloud/ipfs/${imageCID}`
-          const totalPrice = await marketplace.getTotalPrice(item.id)
+            const imageCID = metadata.image.split("/").pop()
+            const imageURL = `https://gateway.pinata.cloud/ipfs/${imageCID}`
+            const totalPrice = await marketplace.getTotalPrice(item.id)
 
-          return {
-            totalPrice,
-            itemId: item.id,
-            seller: item.seller,
-            tokenId: item.tokenId,
-            nftAddress: item.nft,
-            name: metadata.name,
-            description: metadata.description,
-            image: imageURL,
+            return {
+              totalPrice,
+              itemId: item.id,
+              seller: item.seller,
+              tokenId: item.tokenId,
+              nftAddress: item.nft,
+              name: metadata.name,
+              description: metadata.description,
+              image: imageURL,
+            }
+          } catch (err) {
+            console.error(`Error processing item ${item.id}:`, err)
+            return null
           }
-        } catch (err) {
-          console.error(`Error processing item ${item.id}:`, err)
-          return null
-        }
-      })
-    )
+        })
+      )
 
-    setItems(itemsData.filter(item => item !== null))
-  } catch (err) {
-    console.error("Failed to load marketplace items:", err)
-  } finally {
-    setLoading(false)
+      setItems(itemsData.filter(item => item !== null))
+    } catch (err) {
+      console.error("Failed to load marketplace items:", err)
+    } finally {
+      setLoading(false)
+    }
   }
-}
-
-
 
   const addToCart = (item) => {
     if (cart.some(cartItem => cartItem.itemId === item.itemId)) {
@@ -149,131 +146,159 @@ const Home = ({ marketplace, nft }) => {
   }
 
   return (
-    <Container className="my-5">
-      <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 1000 }}>
-        {cart.length > 0 && (
-          <Button
-            variant="info"
-            className="shadow-lg"
-            onClick={buyCartItems}
-            disabled={processingCheckout}
-          >
-            <i className="bi bi-cart-fill me-2"></i> Cart{' '}
-            <Badge bg="light" text="dark" className="ms-1">
-              {cart.length}
-            </Badge>
-          </Button>
-        )}
-      </div>
+    <Container className="my-5" style={{ position: 'relative' }}>
+      {/* Cart fixed on the right side */}
+      {cart.length > 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '80px',
+            right: 0,
+            width: '320px',
+            height: '80vh',
+            overflowY: 'auto',
+            backgroundColor: 'white',
+            boxShadow: '-3px 0 10px rgba(0,0,0,0.1)',
+            padding: '15px',
+            zIndex: 1050,
+            borderLeft: '1px solid #ddd',
+            borderTopLeftRadius: '8px',
+            borderBottomLeftRadius: '8px',
+          }}
+        >
+          <h4 className="mb-3 text-secondary">
+            Your Shopping Cart <Badge bg="primary">{cart.length}</Badge>
+          </h4>
+          <ul className="list-group list-group-flush mb-3">
+            {cart.map((item) => (
+              <li
+                key={item.itemId}
+                className="list-group-item d-flex justify-content-between align-items-center"
+              >
+                <div>
+                  <span className="fw-bold">{item.name}</span> -{' '}
+                  {ethers.formatEther(item.totalPrice)} ETH
+                </div>
+                <Button
+                  onClick={() => removeFromCart(item.itemId)}
+                  variant="outline-danger"
+                  size="sm"
+                >
+                  <i className="bi bi-trash-fill"></i> Remove
+                </Button>
+              </li>
+            ))}
+          </ul>
+          <div className="d-grid">
+            <Button
+              variant="success"
+              size="lg"
+              onClick={buyCartItems}
+              disabled={processingCheckout}
+            >
+              {processingCheckout ? (
+                <>
+                  <span
+                    className="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <i className="bi bi-wallet-fill me-2"></i>
+                  Checkout Total:{' '}
+                  {ethers.formatEther(
+                    cart.reduce(
+                      (total, item) => total + item.totalPrice,
+                      ethers.parseEther("0")
+                    )
+                  )}{' '}
+                  ETH
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
 
+      {/* NFT Cards grid */}
       {items.length > 0 ? (
         <>
-          <h2 className="text-center mb-5 text-primary">Explore Our Digital Collection</h2>
-          <Row xs={1} md={2} lg={3} xl={4} className="g-4 justify-content-center">
-            {items.map((item, idx) => (
-              <Col key={idx}>
-                <Card className="h-100 shadow-sm border-0 transform-on-hover">
-                  <Card.Img variant="top" src={item.image} style={{ height: '150px', objectFit: 'cover', margin: 50 }} />
-                  <Card.Body className="d-flex flex-column">
-                    <Card.Title className="text-truncate mb-1">{item.name}</Card.Title>
-                    <Card.Text className="text-muted flex-grow-1" style={{ margin: 50, fontSize: '0.9rem' }}>
-                      {item.description.length > 70 ? item.description.substring(0, 67) + '...' : item.description}
-                    </Card.Text>
-                    <div className="mt-auto pt-2 border-top">
-                      <p className="fw-bold fs-5 text-success mb-2">
-                        {ethers.formatEther(item.totalPrice)} ETH
-                      </p>
-                      <div className="d-flex flex-column gap-2">
-                        {!cart.some(cartItem => cartItem.itemId === item.itemId) ? (
-                          <Button
-                            onClick={() => addToCart(item)}
-                            variant="primary"
-                            className="w-100 d-flex align-items-center justify-content-center"
-                          >
-                            <i className="bi bi-plus-circle-fill me-2"></i> Add to Cart
-                          </Button>
-                        ) : (
-                          <Button
-                            onClick={() => removeFromCart(item.itemId)}
-                            variant="outline-danger"
-                            className="w-100 d-flex align-items-center justify-content-center"
-                          >
-                            <i className="bi bi-x-circle-fill me-2"></i> Remove from Cart
-                          </Button>
-                        )}
+          <h2 className="text-center mb-5 text-primary">
+            Explore Our Digital Collection
+          </h2>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)', // 3 columns exactly
+              gap: '20px',
+              marginRight: cart.length > 0 ? '340px' : '0', // leave space for cart
+            }}
+          >
+            {items.map((item) => (
+              <Card key={item.itemId} className="h-100 shadow-sm border-0">
+                <Card.Img
+                  variant="top"
+                  src={item.image}
+                  style={{ height: '150px', objectFit: 'cover' }}
+                />
+                <Card.Body className="d-flex flex-column">
+                  <Card.Title className="text-truncate mb-1">{item.name}</Card.Title>
+                  <Card.Text className="text-muted flex-grow-1" style={{ fontSize: '0.9rem' }}>
+                    {item.description.length > 70
+                      ? item.description.substring(0, 67) + '...'
+                      : item.description}
+                  </Card.Text>
+                  <div className="mt-auto pt-2 border-top">
+                    <p className="fw-bold fs-5 text-success mb-2">
+                      {ethers.formatEther(item.totalPrice)} ETH
+                    </p>
+                    <div className="d-flex flex-column gap-2">
+                      {!cart.some(cartItem => cartItem.itemId === item.itemId) ? (
                         <Button
-                          onClick={() => buySingleItem(item)}
-                          variant="success"
+                          onClick={() => addToCart(item)}
+                          variant="primary"
                           className="w-100 d-flex align-items-center justify-content-center"
-                          disabled={processingCheckout}
                         >
-                          <i className="bi bi-cash-coin me-2"></i> Buy Now
+                          <i className="bi bi-plus-circle-fill me-2"></i> Add to Cart
                         </Button>
-                      </div>
+                      ) : (
+                        <Button
+                          onClick={() => removeFromCart(item.itemId)}
+                          variant="outline-danger"
+                          className="w-100 d-flex align-items-center justify-content-center"
+                        >
+                          <i className="bi bi-x-circle-fill me-2"></i> Remove from Cart
+                        </Button>
+                      )}
+                      <Button
+                        onClick={() => buySingleItem(item)}
+                        variant="success"
+                        className="w-100 d-flex align-items-center justify-content-center"
+                        disabled={processingCheckout}
+                      >
+                        <i className="bi bi-cash-coin me-2"></i> Buy Now
+                      </Button>
                     </div>
-                  </Card.Body>
-                </Card>
-              </Col>
+                  </div>
+                </Card.Body>
+              </Card>
             ))}
-          </Row>
+          </div>
         </>
       ) : (
         <main className="text-center py-5">
           <h2 className="text-muted">No NFTs are currently listed for sale. Check back soon!</h2>
-          <p className="mt-3">Consider <a href="/create" className="text-decoration-none">creating your own NFT</a> to list!</p>
+          <p className="mt-3">
+            Consider{' '}
+            <a href="/create" className="text-decoration-none">
+              creating your own NFT
+            </a>{' '}
+            to list!
+          </p>
         </main>
-      )}
-
-      {cart.length > 0 && (
-        <Card
-          className="fixed-bottom bg-white shadow-lg p-3 rounded-top"
-          style={{ zIndex: 999, borderTopLeftRadius: '15px', borderTopRightRadius: '15px' }}
-        >
-          <Card.Body>
-            <h4 className="mb-3 text-secondary">
-              Your Shopping Cart <Badge bg="primary">{cart.length}</Badge>
-            </h4>
-            <ul className="list-group list-group-flush mb-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              {cart.map((item) => (
-                <li key={item.itemId} className="list-group-item d-flex justify-content-between align-items-center">
-                  <div>
-                    <span className="fw-bold">{item.name}</span> - {ethers.formatEther(item.totalPrice)} ETH
-                  </div>
-                  <Button onClick={() => removeFromCart(item.itemId)} variant="outline-danger" size="sm">
-                    <i className="bi bi-trash-fill"></i> Remove
-                  </Button>
-                </li>
-              ))}
-            </ul>
-            <div className="d-grid">
-              <Button
-                variant="success"
-                size="lg"
-                onClick={buyCartItems}
-                disabled={processingCheckout}
-              >
-                {processingCheckout ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <i className="bi bi-wallet-fill me-2"></i>
-                    Checkout Total:{' '}
-                    {ethers.formatEther(
-                      cart.reduce(
-                        (total, item) => total + item.totalPrice,
-                        ethers.parseEther("0")
-                      )
-                    )}{' '}
-                    ETH
-                  </>
-                )}
-              </Button>
-            </div>
-          </Card.Body>
-        </Card>
       )}
     </Container>
   )

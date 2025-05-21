@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Row, Col, Card } from 'react-bootstrap'
+import { Row, Col, Card, Button, Form } from 'react-bootstrap'
 const { ethers } = require('ethers')
 
 // Converts IPFS or HTTP(S) to Pinata gateway URL
@@ -34,15 +34,40 @@ export default function MyListedItems({ marketplace, nft, account }) {
   const [loading, setLoading] = useState(true)
   const [listedItems, setListedItems] = useState([])
   const [soldItems, setSoldItems] = useState([])
+  const [priceUpdates, setPriceUpdates] = useState({}) // Holds new price values per item
+
+  const handlePriceChange = (itemId, value) => {
+    setPriceUpdates(prev => ({ ...prev, [itemId]: value }))
+  }
+
+  const updatePrice = async (itemId) => {
+    try {
+      const newPrice = priceUpdates[itemId]
+      if (!newPrice || isNaN(newPrice)) {
+        alert("Enter a valid price in ETH")
+        return
+      }
+
+      const priceInWei = ethers.parseEther(newPrice)
+      const tx = await marketplace.updatePrice(itemId, priceInWei)
+      await tx.wait()
+
+      alert("Price updated successfully")
+      loadListedItems() // Reload updated data
+    } catch (err) {
+      console.error("Failed to update price:", err)
+      alert("Price update failed")
+    }
+  }
 
   const loadListedItems = async () => {
     try {
-      const itemCount = await marketplace.itemCounter() // updated method name
+      const itemCount = await marketplace.itemCounter()
       const listed = []
       const sold = []
 
       for (let i = 1; i <= itemCount; i++) {
-        const item = await marketplace.listings(i) // updated mapping name
+        const item = await marketplace.listings(i)
 
         if (item.seller.toLowerCase() === account.toLowerCase()) {
           const tokenURI = await nft.tokenURI(item.tokenId)
@@ -52,12 +77,12 @@ export default function MyListedItems({ marketplace, nft, account }) {
           const metadata = await response.json()
 
           const imageUrl = ipfsToPinataGateway(metadata.image)
-          const totalPrice = await marketplace.getTotalPrice(item.id) // use item.id
+          const totalPrice = await marketplace.getTotalPrice(item.id)
 
           const structuredItem = {
             totalPrice,
             price: item.price,
-            itemId: item.id,  // updated field
+            itemId: item.id,
             name: metadata.name,
             description: metadata.description,
             image: imageUrl,
@@ -101,7 +126,22 @@ export default function MyListedItems({ marketplace, nft, account }) {
               <Col key={idx} className="overflow-hidden">
                 <Card>
                   <Card.Img variant="top" src={ipfsToPinataGateway(item.image)} />
-                  <Card.Footer>{ethers.formatEther(item.totalPrice)} ETH</Card.Footer>
+                  <Card.Body>
+                    <Card.Text>Current: {ethers.formatEther(item.totalPrice)} ETH</Card.Text>
+                    <Form.Control
+                      type="text"
+                      placeholder="New price in ETH"
+                      value={priceUpdates[item.itemId] || ""}
+                      onChange={(e) => handlePriceChange(item.itemId, e.target.value)}
+                    />
+                    <Button
+                      className="mt-2 w-100"
+                      variant="primary"
+                      onClick={() => updatePrice(item.itemId)}
+                    >
+                      Update Price
+                    </Button>
+                  </Card.Body>
                 </Card>
               </Col>
             ))}

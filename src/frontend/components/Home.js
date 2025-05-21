@@ -80,35 +80,30 @@ const Home = ({ marketplace, nft }) => {
   }
 
   const buyCartItems = async () => {
-    if (processingCheckout || cart.length === 0) return
-    setProcessingCheckout(true)
+  if (processingCheckout || cart.length === 0) return
+  setProcessingCheckout(true)
 
-    const successfulPurchases = []
+  try {
+    const itemIds = cart.map(item => item.itemId)
+    const totalPrice = cart.reduce(
+      (sum, item) => sum + item.totalPrice,
+      ethers.parseEther("0")
+    )
 
-    for (const item of cart) {
-      try {
-        const tx = await marketplace.buyItem(item.itemId, {
-          value: item.totalPrice
-        })
-        await tx.wait()
-        successfulPurchases.push(item.itemId)
-      } catch (err) {
-        console.error(`Failed to purchase item ID ${item.itemId}:`, err)
-        alert(`Purchase failed for item: ${item.name}`)
-      }
-    }
+    const tx = await marketplace.buyMultipleItems(itemIds, { value: totalPrice })
+    await tx.wait()
 
-    setCart(cart.filter(item => !successfulPurchases.includes(item.itemId)))
-
-    if (successfulPurchases.length > 0) {
-      loadMarketplaceItems()
-      alert("Checkout completed for some items.")
-    } else {
-      alert("No items were purchased.")
-    }
-
-    setProcessingCheckout(false)
+    alert("Successfully purchased all items in cart!")
+    setCart([])
+    loadMarketplaceItems()
+  } catch (err) {
+    console.error("Failed to purchase cart items:", err)
+    alert("Checkout failed. Please try again.")
   }
+
+  setProcessingCheckout(false)
+}
+
 
   const buySingleItem = async (item) => {
     if (processingCheckout) return

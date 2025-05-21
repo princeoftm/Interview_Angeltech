@@ -271,7 +271,7 @@ body {
 
 .nav-links, .logo, .material-icons {
     text-decoration: none;
-    color: ghostwhite;
+    color: rgb(0, 0, 0);
     opacity: 0.6;
 }
 

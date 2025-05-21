@@ -21,23 +21,29 @@ const Home = ({ marketplace, nft }) => {
   }
 
   const loadMarketplaceItems = async () => {
-    try {
-      const itemCount = await marketplace.itemCounter()
-      const loadedItems = []
+  try {
+    const itemCount = Number(await marketplace.itemCounter())
+    const itemsArray = Array.from({ length: itemCount }, (_, i) => i + 1)
 
-      for (let i = 1; i <= itemCount; i++) {
-        const item = await marketplace.listings(i)
-        if (!item.sold) {
+    const listings = await Promise.all(
+      itemsArray.map(i => marketplace.listings(i))
+    )
+
+    const unsoldListings = listings.filter(item => !item.sold)
+
+    const itemsData = await Promise.all(
+      unsoldListings.map(async (item) => {
+        try {
           const tokenURI = await nft.tokenURI(item.tokenId)
           const cid = tokenURI.split("/").pop()
           const metadata = await fetchPinataMetadata(cid)
-          if (!metadata) continue
+          if (!metadata) return null
 
           const imageCID = metadata.image.split("/").pop()
           const imageURL = `https://gateway.pinata.cloud/ipfs/${imageCID}`
           const totalPrice = await marketplace.getTotalPrice(item.id)
 
-          loadedItems.push({
+          return {
             totalPrice,
             itemId: item.id,
             seller: item.seller,
@@ -46,17 +52,23 @@ const Home = ({ marketplace, nft }) => {
             name: metadata.name,
             description: metadata.description,
             image: imageURL,
-          })
+          }
+        } catch (err) {
+          console.error(`Error processing item ${item.id}:`, err)
+          return null
         }
-      }
+      })
+    )
 
-      setItems(loadedItems)
-    } catch (err) {
-      console.error("Failed to load marketplace items:", err)
-    } finally {
-      setLoading(false)
-    }
+    setItems(itemsData.filter(item => item !== null))
+  } catch (err) {
+    console.error("Failed to load marketplace items:", err)
+  } finally {
+    setLoading(false)
   }
+}
+
+
 
   const addToCart = (item) => {
     if (cart.some(cartItem => cartItem.itemId === item.itemId)) {

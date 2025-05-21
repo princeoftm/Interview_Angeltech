@@ -18,22 +18,16 @@ const Navigation = ({ web3Handler, account }) => {
                     <Nav.Link as={Link} to="/my-purchases" className="text-dark nav-link-underline">🛍️ Purchases</Nav.Link>
                 </Nav>
                 <Nav>
-                    {account ? (
-                        <Nav.Link
-                            href={`https://etherscan.io/address/${account}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="d-flex align-items-center"
-                        >
-                            <Button variant="outline-primary"> {/* Default Bootstrap primary */}
-                                💼 {account.slice(0, 5) + '...' + account.slice(38, 42)}
-                            </Button>
-                        </Nav.Link>
-                    ) : (
-                        <Button onClick={web3Handler} variant="primary"> {/* Solid primary button */}
-                            💼 Connect Wallet
-                        </Button>
-                    )}
+{account ? (
+  <Button variant="outline-primary" className="wallet-button">
+    💼 {account.slice(0, 5) + '...' + account.slice(38, 42)}
+  </Button>
+) : (
+  <Button onClick={web3Handler} variant="primary" className="wallet-button">
+    💼 Connect Wallet
+  </Button>
+)}
+
                 </Nav>
             </Navbar.Collapse>
         </Navbar>

@@ -48,10 +48,16 @@ const uploadToPinata = async (file) => {
         }
       );
       return `https://gateway.pinata.cloud/ipfs/${response.data.IpfsHash}`;
-    } catch (error) {
-      console.error("Pinata JSON upload error:", error.response?.data || error.message);
-      throw error;
-    }
+} catch (error) {
+  if (error.code === 4001) {  // MetaMask user rejected transaction error code
+    alert("Transaction rejected by user.");
+  } else {
+    alert("❌ NFT creation failed due to an error.");
+  }
+  console.error(error);
+  throw error;
+}
+
   };
 
   const handleImageUpload = async (e) => {
@@ -73,34 +79,34 @@ const createNFT = async () => {
     return;
   }
 
-  setCreating(true); // Start process
+  setCreating(true);
 
   try {
-  const imageUrl = await uploadToPinata(image);
-  const metadata = { name, description, image: imageUrl };
-  const metadataUrl = await uploadJSONToPinata(metadata);
+    const imageUrl = await uploadToPinata(image);
+    const metadata = { name, description, image: imageUrl };
+    const metadataUrl = await uploadJSONToPinata(metadata);
 
-  await mintThenList(metadataUrl);
+    await mintThenList(metadataUrl);
 
-  alert("🎉 Your NFT has been successfully created and listed!");
+    // Only show success alert if mintThenList succeeds
+    alert("🎉 Your NFT has been successfully created and listed!");
 
-  // Reset form
-  setImage(null);
-  setPreview(null);
-  setPrice(null);
-  setName("");
-  setDescription("");
+    // Reset form
+    setImage(null);
+    setPreview(null);
+    setPrice(null);
+    setName("");
+    setDescription("");
 
-  const fileInput = document.getElementById("formFile");
-  if (fileInput) fileInput.value = "";
+    const fileInput = document.getElementById("formFile");
+    if (fileInput) fileInput.value = "";
 
-} catch (error) {
-  console.error("Error creating NFT:", error);
-  alert("❌ NFT creation failed or was cancelled.");
-} finally {
-  setCreating(false);
-}
-
+  } catch (error) {
+    console.error("Error creating NFT:", error);
+    alert("❌ NFT creation failed or was cancelled.");
+  } finally {
+    setCreating(false);
+  }
 };
 
 

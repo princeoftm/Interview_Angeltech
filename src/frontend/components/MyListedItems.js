@@ -60,47 +60,51 @@ export default function MyListedItems({ marketplace, nft, account }) {
     }
   }
 
-  const loadListedItems = async () => {
-    try {
-      const itemCount = await marketplace.itemCounter()
-      const listed = []
-      const sold = []
+const loadListedItems = async () => {
+  try {
+    const itemCount = await marketplace.itemCounter()
+    const listed = []
+    const sold = []
 
-      for (let i = 1; i <= itemCount; i++) {
-        const item = await marketplace.listings(i)
+    for (let i = 1; i <= itemCount; i++) {
+      const item = await marketplace.listings(i)
 
-        if (item.seller.toLowerCase() === account.toLowerCase()) {
-          const tokenURI = await nft.tokenURI(item.tokenId)
-          const metadataUrl = ipfsToPinataGateway(tokenURI)
+      if (item.seller.toLowerCase() === account.toLowerCase()) {
+        const tokenURI = await nft.tokenURI(item.tokenId)
+        const metadataUrl = ipfsToPinataGateway(tokenURI)
 
-          const response = await fetch(metadataUrl)
-          const metadata = await response.json()
+        const response = await fetch(metadataUrl)
+        const metadata = await response.json()
 
-          const imageUrl = ipfsToPinataGateway(metadata.image)
-          const totalPrice = await marketplace.getTotalPrice(item.id)
+        const imageUrl = ipfsToPinataGateway(metadata.image)
+        const totalPrice = await marketplace.getTotalPrice(item.id)
 
-          const structuredItem = {
-            totalPrice,
-            price: item.price,
-            itemId: item.id,
-            name: metadata.name,
-            description: metadata.description,
-            image: imageUrl,
-          }
+        const structuredItem = {
+          totalPrice,
+          price: item.price,
+          itemId: item.id,
+          name: metadata.name,
+          description: metadata.description,
+          image: imageUrl,
+        }
 
+        if (item.sold) {
+          sold.push(structuredItem)
+        } else {
           listed.push(structuredItem)
-          if (item.sold) sold.push(structuredItem)
         }
       }
-
-      setListedItems(listed)
-      setSoldItems(sold)
-    } catch (err) {
-      console.error("Failed to load listed items:", err)
-    } finally {
-      setLoading(false)
     }
+
+    setListedItems(listed)
+    setSoldItems(sold)
+  } catch (err) {
+    console.error("Failed to load listed items:", err)
+  } finally {
+    setLoading(false)
   }
+}
+
 
   useEffect(() => {
     if (marketplace && nft && account) {

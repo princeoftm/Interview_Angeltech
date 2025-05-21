@@ -70,19 +70,39 @@ function App() {
       <div className="App">
         <Navigation web3Handler={web3Handler} account={account} />
         <div>
-          {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
-              <Spinner animation="border" style={{ display: 'flex' }} />
-              <p className='mx-3 my-0'>Awaiting Metamask Connection...</p>
-            </div>
-          ) : (
-            <Routes>
-              <Route path="/" element={<Home marketplace={marketplace} nft={nft} />} />
-              <Route path="/create" element={<Create marketplace={marketplace} nft={nft} />} />
-              <Route path="/my-listed-items" element={<MyListedItems marketplace={marketplace} nft={nft} account={account} />} />
-              <Route path="/my-purchases" element={<MyPurchases marketplace={marketplace} nft={nft} account={account} />} />
-            </Routes>
-          )}
+{!account ? (
+  <div className="d-flex flex-column justify-content-center align-items-center vh-100">
+    <button
+      onClick={web3Handler}
+      style={{
+        padding: '1.5rem 3rem',
+        fontSize: '1.8rem',
+        fontWeight: '700',
+        borderRadius: '12px',
+        backgroundColor: '#f6851b',
+        color: 'white',
+        border: 'none',
+        cursor: 'pointer',
+        boxShadow: '0 4px 15px rgba(246, 133, 27, 0.4)',
+      }}
+    >
+      Connect to MetaMask
+    </button>
+  </div>
+) : loading ? (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
+    <Spinner animation="border" />
+    <p className='mx-3 my-0'>Loading marketplace and contracts...</p>
+  </div>
+) : (
+  <Routes>
+    <Route path="/" element={<Home marketplace={marketplace} nft={nft} />} />
+    <Route path="/create" element={<Create marketplace={marketplace} nft={nft} />} />
+    <Route path="/my-listed-items" element={<MyListedItems marketplace={marketplace} nft={nft} account={account} />} />
+    <Route path="/my-purchases" element={<MyPurchases marketplace={marketplace} nft={nft} account={account} />} />
+  </Routes>
+)}
+
         </div>
       </div>
     </BrowserRouter>

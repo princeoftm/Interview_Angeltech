@@ -27,7 +27,8 @@ body, html, #root, .App {
 /* Navigation bar overrides */
 .navbar {
   background-color: #1e40af !important; /* Indigo-800 */
-  padding: 1rem 2rem;
+  margin: 0;
+  padding: 0;
 }
 
 .navbar-brand, .navbar-nav .nav-link {
@@ -197,7 +198,6 @@ body {
 
 .navbar {
     font-size: 18px;
-    background: linear-gradient(9deg, #c02c2c, #2cc05d, #962cc0, #c02c51, #2cb6c0, #c0aa2c);
     border-bottom: #615858 4px solid;
     border-bottom-left-radius: 40px;
     border-bottom-right-radius: 40px;
@@ -313,12 +313,13 @@ body {
 *,::after,::before{
     box-sizing: border-box;
 }
-body{
-    margin: 2rem 0 0 0;
+body {
+    margin: 0;
     background-color: #fff;
     color: var(--dark-color);
     font-family: var(--body-font);
 }
+
 h1{
     font-size: var(--h1-font-size);
 }
@@ -448,7 +449,7 @@ article:nth-child(4){
 /*-- MEDIA QUERIES --*/
 @media screen and (min-width: 120px){
     body{
-        margin: 3rem 0 0 0;
+        margin: 0;
     }
     .title-shop{
         margin: 0 5rem;

@@ -66,49 +66,69 @@ export default function MyListedItems({ marketplace, nft, account }) {
   }
 
   const loadListedItems = async () => {
-    try {
-      const itemCount = await marketplace.itemCounter()
-      const listed = []
-      const sold = []
+  try {
+    setLoading(true);
+    const itemCount = await marketplace.itemCounter();
+    const listed = [];
+    const sold = [];
 
-      for (let i = 1; i <= itemCount; i++) {
-        const item = await marketplace.listings(i)
+    // Fetch all listings in parallel
+    const listingPromises = [];
+    for (let i = 1; i <= itemCount; i++) {
+      listingPromises.push(marketplace.listings(i));
+    }
+    const listings = await Promise.all(listingPromises);
 
-        if (item.seller.toLowerCase() === account.toLowerCase()) {
-          const tokenURI = await nft.tokenURI(item.tokenId)
-          const metadataUrl = ipfsToPinataGateway(tokenURI)
+    // Filter items by seller first
+    const myItems = listings.filter(
+      item => item.seller.toLowerCase() === account.toLowerCase()
+    );
 
-          const response = await fetch(metadataUrl)
-          const metadata = await response.json()
+    // Now fetch tokenURI and totalPrice for each item in parallel
+    const itemsWithMetadata = await Promise.all(
+      myItems.map(async (item) => {
+        try {
+          const tokenURI = await nft.tokenURI(item.tokenId);
+          const metadataUrl = ipfsToPinataGateway(tokenURI);
 
-          const imageUrl = ipfsToPinataGateway(metadata.image)
-          const totalPrice = await marketplace.getTotalPrice(item.id)
+          const response = await fetch(metadataUrl);
+          const metadata = await response.json();
 
-          const structuredItem = {
+          const imageUrl = ipfsToPinataGateway(metadata.image);
+          const totalPrice = await marketplace.getTotalPrice(item.id);
+
+          return {
             totalPrice,
             price: item.price,
             itemId: item.id,
             name: metadata.name,
             description: metadata.description,
             image: imageUrl,
-          }
-
-          if (item.sold) {
-            sold.push(structuredItem)
-          } else {
-            listed.push(structuredItem)
-          }
+            sold: item.sold
+          };
+        } catch (err) {
+          console.warn(`Failed to load metadata for item ${item.id}:`, err);
+          return null;
         }
-      }
+      })
+    );
 
-      setListedItems(listed)
-      setSoldItems(sold)
-    } catch (err) {
-      console.error("Failed to load listed items:", err)
-    } finally {
-      setLoading(false)
-    }
+    // Separate sold and listed, ignoring failed fetches
+    itemsWithMetadata.forEach(item => {
+      if (!item) return;
+      if (item.sold) sold.push(item);
+      else listed.push(item);
+    });
+
+    setListedItems(listed);
+    setSoldItems(sold);
+  } catch (err) {
+    console.error("Failed to load listed items:", err);
+  } finally {
+    setLoading(false);
   }
+};
+
 
   useEffect(() => {
     if (marketplace && nft && account) {

@@ -9,6 +9,7 @@ const Create = ({ marketplace, nft }) => {
   const [price, setPrice] = useState(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const pinataJWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiIyMDAyZTUxYS0yMjdmLTRlOTctOTcxZC0xODg1ODc4MDM4NWYiLCJlbWFpbCI6InJhb2FuaXJ1ZGRoOTJAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBpbl9wb2xpY3kiOnsicmVnaW9ucyI6W3siZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiRlJBMSJ9LHsiZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiTllDMSJ9XSwidmVyc2lvbiI6MX0sIm1mYV9lbmFibGVkIjpmYWxzZSwic3RhdHVzIjoiQUNUSVZFIn0sImF1dGhlbnRpY2F0aW9uVHlwZSI6InNjb3BlZEtleSIsInNjb3BlZEtleUtleSI6IjZlMjE4Y2I0MWFjYTI5ZjAxZTY1Iiwic2NvcGVkS2V5U2VjcmV0IjoiZjZmM2MzYzZhZjA1NGZjZDM0MTgyMGYyMmM4NGQ5OTQ4NWM4ZGEzMTc0MDkyOTZiNmYzNWM0MzdkMDIzMzk3YyIsImV4cCI6MTc3ODgyODkyM30.7jCwk1g0wE1NbW27YPRDAenQqBlIEUvwPoz-RoExAiQ";
 const uploadToPinata = async (file) => {
@@ -61,6 +62,7 @@ const uploadToPinata = async (file) => {
   };
 
 const createNFT = async () => {
+  if (creating) return; // Prevent double submission
   if (!image || !price || !name || !description) {
     alert("Please fill in all fields before creating the NFT.");
     return;
@@ -71,32 +73,36 @@ const createNFT = async () => {
     return;
   }
 
+  setCreating(true); // Start process
+
   try {
-    const imageUrl = await uploadToPinata(image);
-    const metadata = { name, description, image: imageUrl };
-    const metadataUrl = await uploadJSONToPinata(metadata);
+  const imageUrl = await uploadToPinata(image);
+  const metadata = { name, description, image: imageUrl };
+  const metadataUrl = await uploadJSONToPinata(metadata);
 
-    await mintThenList(metadataUrl);
+  await mintThenList(metadataUrl);
 
-    // ✅ Alert and reset form after successful mint & list
-    alert("🎉 Your NFT has been successfully created and listed!");
+  alert("🎉 Your NFT has been successfully created and listed!");
 
-    // Reset form fields
-    setImage(null);
-    setPreview(null);
-    setPrice(null);
-    setName("");
-    setDescription("");
+  // Reset form
+  setImage(null);
+  setPreview(null);
+  setPrice(null);
+  setName("");
+  setDescription("");
 
-    // Also reset the file input (optional)
-    const fileInput = document.getElementById("formFile");
-    if (fileInput) fileInput.value = "";
+  const fileInput = document.getElementById("formFile");
+  if (fileInput) fileInput.value = "";
 
-  } catch (error) {
-    console.error("Error creating NFT:", error);
-    alert("❌ Failed to create NFT. Check console for details.");
-  }
+} catch (error) {
+  console.error("Error creating NFT:", error);
+  alert("❌ NFT creation failed or was cancelled.");
+} finally {
+  setCreating(false);
+}
+
 };
+
 
 
   const mintThenList = async (tokenURI) => {
@@ -122,6 +128,8 @@ const createNFT = async () => {
     console.log("✅ NFT Listed!");
   } catch (error) {
     console.error("❌ mintThenList error:", error);
+    // Re-throw the error so createNFT() can catch it
+    throw error;
   }
 };
 
@@ -187,11 +195,19 @@ const createNFT = async () => {
                       />
                     </Form.Group>
 
-                    <div className="d-grid mt-5">
-                      <Button onClick={createNFT} variant="primary" size="lg">
-                        Mint & List NFT!
-                      </Button>
-                    </div>
+<div className="d-grid mt-5">
+  {!creating && (
+    <Button onClick={createNFT} variant="primary" size="lg">
+      Mint & List NFT!
+    </Button>
+  )}
+  {creating && (
+    <Button variant="secondary" size="lg" disabled>
+      Minting in Progress...
+    </Button>
+  )}
+</div>
+
                   </Form>
                 </Col>
               </Row>

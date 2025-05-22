@@ -3,7 +3,7 @@ import {
   Routes,
   Route
 } from "react-router-dom";
-
+import { Analytics } from "@vercel/analytics/react"
 import Navigation from './Navbar';
 import Home from './Home.js';
 import Create from './Create.js';
